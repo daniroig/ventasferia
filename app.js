@@ -81,7 +81,6 @@
     var box = $('last');
     var rec = lastId ? findRec(lastId) : null;
     box.hidden = !rec;
-    $('priceErr').textContent = '';
     if (!rec) return;
     $('lastKind').textContent = rec.isbn ? 'Último registro · ISBN' : 'Último registro · Código';
     $('lastVal').textContent = rec.isbn || rec.code;
@@ -89,7 +88,7 @@
     $('lastNote').textContent = previous > 0
       ? 'Guardado. Ya lo habías registrado ' + previous + (previous === 1 ? ' vez' : ' veces') + ' antes.'
       : 'Guardado.';
-    $('lastPrice').value = L.fmtPrice(rec.price);
+    $('lastPriceText').textContent = priceText(rec.price);
   }
 
   function renderList() {
@@ -175,31 +174,16 @@
     return p.ok ? p : null;
   }
 
-  // Guarda el precio y mantiene sincronizado el campo de "Último registro".
+  function priceText(p) {
+    return p == null ? 'Sin precio' : L.fmtPrice(p) + ' €';
+  }
+
+  // Guarda el precio editado en la lista y actualiza "Último registro" si es el mismo.
   function setPrice(rec, value) {
     rec.price = value;
     save();
-    if (lastId === rec.id && document.activeElement !== $('lastPrice')) {
-      $('lastPrice').value = L.fmtPrice(value);
-    }
+    if (lastId === rec.id) $('lastPriceText').textContent = priceText(value);
   }
-
-  $('lastPrice').addEventListener('input', function () {
-    var rec = lastId ? findRec(lastId) : null;
-    if (!rec) return;
-    var p = liveParse($('lastPrice').value);
-    if (!p) { $('priceErr').textContent = 'Precio no válido'; $('lastPrice').classList.add('bad'); return; }
-    $('priceErr').textContent = '';
-    $('lastPrice').classList.remove('bad');
-    setPrice(rec, p.value);
-    renderList();
-  });
-  $('lastPrice').addEventListener('blur', function () {
-    var rec = lastId ? findRec(lastId) : null;
-    $('priceErr').textContent = '';
-    $('lastPrice').classList.remove('bad');
-    if (rec) $('lastPrice').value = L.fmtPrice(rec.price);
-  });
 
   var delArmed = false, delTimer;
   $('lastDelete').addEventListener('click', function () {
@@ -219,62 +203,79 @@
     e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
     $('manualErr').textContent = '';
   });
+  $('codePrice').addEventListener('input', function () { $('manualErr').textContent = ''; });
   $('manualForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var v = $('code').value;
     if (!/^\d{6}$/.test(v)) { $('manualErr').textContent = 'El código debe tener exactamente 6 dígitos.'; return; }
-    if (addRecord({ code: v })) { $('code').value = ''; }
+    var p = liveParse($('codePrice').value);
+    if (!p) { $('manualErr').textContent = 'Precio no válido. Ejemplo: 12,50'; return; }
+    if (addRecord({ code: v, price: p.value })) {
+      $('code').value = '';
+      $('codePrice').value = ''; // el precio vuelve a vacío (opcional) en cada entrada
+    }
   });
 
   /* ---------- Cámara ---------- */
   var video = $('video');
   var stream = null, starting = false, scanning = false, lastVal = '', lastValT = 0, fallbackTimer = null;
 
-  // Un ISBN leído queda pendiente: solo se guarda al pulsar "Añadir".
-  var pendingIsbn = null;
+  // El ISBN leído se escribe en el campo y solo se guarda al pulsar "Añadir".
+  // Mientras el campo tenga algo, la cámara no lee otro. Para descartarlo basta con
+  // borrarlo con la tecla de retroceso.
+  var isbnField = $('isbnField');
 
   function handleScan(raw) {
-    if (pendingIsbn) return; // mientras haya uno sin confirmar, se ignoran nuevas lecturas
+    if (isbnField.value) return;
     if (!L.isBookISBN(raw)) return;
     var now = Date.now();
     if (raw === lastVal && now - lastValT < 4000) return;
     lastVal = raw; lastValT = now;
-    showPending(raw);
+    isbnField.value = raw;
+    refreshIsbn();
     beep();
     var cam = $('cam');
     cam.classList.add('hit');
     setTimeout(function () { cam.classList.remove('hit'); }, 500);
   }
 
-  function showPending(isbn) {
-    pendingIsbn = isbn;
-    var previous = records.filter(function (r) { return r.isbn === isbn; }).length;
-    $('isbnField').value = isbn;
+  // Activa o desactiva "Añadir" y avisa si el ISBN ya estaba registrado.
+  function refreshIsbn() {
+    var v = isbnField.value;
+    $('btnAdd').disabled = v === '';
+    $('isbnErr').textContent = '';
+    var previous = L.isBookISBN(v)
+      ? records.filter(function (r) { return r.isbn === v; }).length
+      : 0;
     $('isbnNote').textContent = previous > 0
       ? 'Ya lo habías registrado ' + previous + (previous === 1 ? ' vez.' : ' veces.')
       : '';
-    $('btnAdd').disabled = false;
-    $('btnDiscard').disabled = false;
+    if (v === '') lastValT = Date.now(); // evita que el mismo código vuelva a aparecer al instante
   }
 
-  // Vacía el campo ISBN (tras añadir o descartar).
-  function closePending() {
-    pendingIsbn = null;
-    lastValT = Date.now(); // evita que el mismo código vuelva a aparecer al instante
-    $('isbnField').value = '';
-    $('isbnNote').textContent = '';
-    $('btnAdd').disabled = true;
-    $('btnDiscard').disabled = true;
-  }
+  isbnField.addEventListener('input', function () {
+    isbnField.value = isbnField.value.replace(/\D/g, '').slice(0, 13);
+    refreshIsbn();
+  });
+  $('isbnPrice').addEventListener('input', function () { $('isbnErr').textContent = ''; });
 
-  $('btnAdd').addEventListener('click', function () {
-    if (!pendingIsbn) return;
-    if (addRecord({ isbn: pendingIsbn }, true)) {
-      closePending();
-      toast('Libro añadido. Puedes apuntar el precio abajo.');
+  $('isbnCard').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var v = isbnField.value;
+    if (!v) return;
+    if (!L.isBookISBN(v)) {
+      $('isbnErr').textContent = 'ISBN no válido: 13 dígitos que empiecen por 978 o 979.';
+      return;
+    }
+    var p = liveParse($('isbnPrice').value);
+    if (!p) { $('isbnErr').textContent = 'Precio no válido. Ejemplo: 12,50'; return; }
+    if (addRecord({ isbn: v, price: p.value }, true)) {
+      isbnField.value = '';
+      $('isbnPrice').value = ''; // el precio vuelve a vacío (opcional) en cada entrada
+      refreshIsbn();
+      toast('Libro añadido.');
     }
   });
-  $('btnDiscard').addEventListener('click', closePending);
 
   function camMessage(msg) { $('camMsg').textContent = msg; }
 

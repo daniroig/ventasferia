@@ -123,10 +123,13 @@
   #last .err { min-height: 0; font-size: .8rem; }
   #last .err:empty, #last .note:empty { display: none; }
   .last .note { margin: 0; color: var(--ok); font-size: .9rem; min-height: 1.2em; }
-  .isbn-row { display: flex; gap: 8px; align-items: center; }
-  .isbn-actions { display: flex; flex-direction: column; gap: 6px; width: 104px; flex: none; }
-  .isbn-actions .btn { width: 100%; padding: 0 8px; }
-  input.isbn { letter-spacing: .04em; font-size: 1.05rem; }
+  .side-label { margin: 0; font-size: .85rem; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
+  .price-show { margin: 0; font-size: 1.2rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  input[type="text"].pr { width: 70px; flex: none; text-align: right; padding: 0 8px; }
+  .btn.add { flex: none; padding: 0 12px; }
+  input.isbn { letter-spacing: .01em; font-size: .95rem; padding: 0 8px; }
+  #isbnCard .err { min-height: 0; }
+  #isbnCard .err:empty { display: none; }
   #isbnCard .note { margin: 0; color: var(--muted); font-size: .9rem; }
   #isbnCard .note:empty { display: none; }
   .btn:disabled { opacity: .45; cursor: default; }
@@ -182,7 +185,7 @@
 <body>
 <div class="wrap">
   <header class="top">
-    <h1>Registro de libros <small class="ver">v5</small></h1>
+    <h1>Registro de libros <small class="ver">v6</small></h1>
     <span class="pill"><b id="count">0</b> registros</span>
   </header>
 
@@ -196,23 +199,23 @@
     </div>
     <button type="button" class="btn primary" id="btnCam" style="width:100%">Activar cámara</button>
 
-    <div class="card" id="isbnCard">
+    <form class="card" id="isbnCard" autocomplete="off">
       <label for="isbnField">ISBN escaneado</label>
-      <div class="isbn-row">
-        <input type="text" class="mono isbn" id="isbnField" readonly placeholder="Sin escanear" autocomplete="off">
-        <div class="isbn-actions">
-          <button type="button" class="btn primary" id="btnAdd" disabled>Añadir</button>
-          <button type="button" class="btn small" id="btnDiscard" disabled>Descartar</button>
-        </div>
+      <div class="inline">
+        <input type="text" class="mono isbn" id="isbnField" inputmode="numeric" maxlength="13" placeholder="Sin escanear">
+        <input type="text" class="pr" id="isbnPrice" inputmode="decimal" placeholder="Precio" aria-label="Precio (opcional)">
+        <button type="submit" class="btn primary add" id="btnAdd" disabled>Añadir</button>
       </div>
       <p class="note" id="isbnNote"></p>
-    </div>
+      <p class="err" id="isbnErr" role="alert"></p>
+    </form>
 
     <form class="card" id="manualForm" autocomplete="off">
       <label for="code">Código manual de 6 dígitos</label>
       <div class="inline">
         <input type="text" class="mono" id="code" inputmode="numeric" maxlength="6" placeholder="000000">
-        <button type="submit" class="btn primary">Añadir</button>
+        <input type="text" class="pr" id="codePrice" inputmode="decimal" placeholder="Precio" aria-label="Precio (opcional)">
+        <button type="submit" class="btn primary add">Añadir</button>
       </div>
       <p class="err" id="manualErr" role="alert"></p>
     </form>
@@ -226,12 +229,8 @@
           <p class="note" id="lastNote"></p>
         </div>
         <div class="last-side">
-          <label for="lastPrice">Precio (opcional)</label>
-          <div class="inline">
-            <input type="text" id="lastPrice" inputmode="decimal" placeholder="0,00" autocomplete="off">
-            <span class="unit">€</span>
-          </div>
-          <p class="err" id="priceErr" role="alert"></p>
+          <p class="side-label">Precio</p>
+          <p class="price-show" id="lastPriceText"></p>
           <button type="button" class="btn danger small" id="lastDelete">Eliminar</button>
         </div>
       </div>

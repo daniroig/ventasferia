@@ -26,8 +26,8 @@ esta carpeta a un alojamiento gratuito. La opción más rápida:
 3. Al pulsar "Activar cámara" por primera vez, acepta el permiso de cámara.
 
 ## Uso
-- **Entrada**: activa la cámara con el botón de debajo de la imagen y apunta al código de barras. Suena un pitido y el ISBN aparece en el campo "ISBN escaneado"; pulsa **Añadir** para guardarlo (o **Descartar**). Al añadir, el campo se vacía y puedes apuntar el precio en el recuadro "Último registro".
-- **Código manual**: escribe 6 dígitos y pulsa "Añadir".
+- **Entrada**: activa la cámara con el botón de debajo de la imagen y apunta al código de barras. Suena un pitido y el ISBN aparece en el campo "ISBN escaneado". Si quieres, escribe el precio en el campo de al lado y pulsa **Añadir** para guardarlo. Si no quieres guardar ese ISBN, bórralo con la tecla de retroceso. Tras añadir, el ISBN y el precio se vacían. "Último registro" solo muestra lo último guardado; el precio se edita en Registros.
+- **Código manual**: escribe 6 dígitos, el precio si quieres, y pulsa "Añadir".
 - **Registros**: lista completa donde puedes tocar un registro para editar su precio en la misma línea, botón de borrar por registro y exportación a .xlsx o .csv
   (se guardan en la carpeta Descargas del móvil).
 
@@ -36,4 +36,4 @@ esta carpeta a un alojamiento gratuito. La opción más rápida:
   datos de Chrome o desinstalas la app, se pierden: exporta con frecuencia.
 - Los datos no se comparten entre dispositivos.
 - Para actualizar la app, sube los archivos de nuevo y cambia el nombre de la caché en
-  `sw.js` (`libros-v5` por `libros-v6`).
+  `sw.js` (`libros-v6` por `libros-v7`).

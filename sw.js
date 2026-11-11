@@ -1,4 +1,4 @@
-var CACHE = 'libros-v5';
+var CACHE = 'libros-v6';
 var SHELL = ['./', 'index.html', 'app.js', 'lib.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', function (e) {
