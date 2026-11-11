@@ -102,12 +102,43 @@
 
       var main = document.createElement('div');
       main.className = 'main';
-      var tag = document.createElement('span');
-      tag.className = 'tag';
-      tag.textContent = r.isbn ? 'ISBN' : 'CÓD.';
-      main.appendChild(tag);
+      if (!r.isbn) {
+        var tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.textContent = 'CÓD.';
+        main.appendChild(tag);
+      }
       main.appendChild(document.createTextNode(r.isbn || r.code));
-      li.appendChild(main);
+      var meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = L.fmtDate(r.ts) + ' · ' + L.fmtTime(r.ts);
+      var info = document.createElement('div');
+      info.className = 'info';
+      info.appendChild(main);
+      info.appendChild(meta);
+      li.appendChild(info);
+
+      // Precio editable en la propia fila.
+      var price = document.createElement('input');
+      price.type = 'text';
+      price.className = 'price-in';
+      price.placeholder = 'Precio';
+      price.setAttribute('inputmode', 'decimal');
+      price.setAttribute('autocomplete', 'off');
+      price.setAttribute('aria-label', 'Precio de ' + (r.isbn || r.code));
+      price.value = L.fmtPrice(r.price);
+      price.addEventListener('focus', function () { setTimeout(function () { price.select(); }, 0); });
+      price.addEventListener('input', function () {
+        var p = liveParse(price.value);
+        if (!p) { price.classList.add('bad'); return; }
+        price.classList.remove('bad');
+        setPrice(r, p.value);
+      });
+      price.addEventListener('blur', function () {
+        price.classList.remove('bad');
+        price.value = L.fmtPrice(r.price);
+      });
+      li.appendChild(price);
 
       var del = document.createElement('button');
       del.type = 'button';
@@ -123,12 +154,13 @@
         }
       });
 
-      var meta = document.createElement('div');
-      meta.className = 'meta';
-      meta.textContent = L.fmtDate(r.ts) + ' · ' + L.fmtTime(r.ts) +
-        (r.price != null ? ' · ' + L.fmtPrice(r.price) + ' €' : '');
       li.appendChild(del);
-      li.appendChild(meta);
+
+      // Tocar cualquier parte de la fila lleva al campo del precio.
+      li.addEventListener('click', function (e) {
+        if (e.target === price || e.target === del) return;
+        price.focus();
+      });
       ul.appendChild(li);
     });
     $('emptyMsg').hidden = records.length > 0;
@@ -137,25 +169,46 @@
   }
 
   /* ---------- Precio del último registro ---------- */
+  // Acepta también un separador final mientras se escribe ("12,").
+  function liveParse(text) {
+    var p = L.parsePrice(String(text).replace(/[.,]$/, ''));
+    return p.ok ? p : null;
+  }
+
+  // Guarda el precio y mantiene sincronizado el campo de "Último registro".
+  function setPrice(rec, value) {
+    rec.price = value;
+    save();
+    if (lastId === rec.id && document.activeElement !== $('lastPrice')) {
+      $('lastPrice').value = L.fmtPrice(value);
+    }
+  }
+
   $('lastPrice').addEventListener('input', function () {
     var rec = lastId ? findRec(lastId) : null;
     if (!rec) return;
-    var p = L.parsePrice($('lastPrice').value);
-    if (!p.ok) { $('priceErr').textContent = 'Precio no válido. Ejemplo: 12,50'; return; }
+    var p = liveParse($('lastPrice').value);
+    if (!p) { $('priceErr').textContent = 'Precio no válido'; $('lastPrice').classList.add('bad'); return; }
     $('priceErr').textContent = '';
-    rec.price = p.value;
-    save();
+    $('lastPrice').classList.remove('bad');
+    setPrice(rec, p.value);
     renderList();
+  });
+  $('lastPrice').addEventListener('blur', function () {
+    var rec = lastId ? findRec(lastId) : null;
+    $('priceErr').textContent = '';
+    $('lastPrice').classList.remove('bad');
+    if (rec) $('lastPrice').value = L.fmtPrice(rec.price);
   });
 
   var delArmed = false, delTimer;
   $('lastDelete').addEventListener('click', function () {
     var btn = $('lastDelete');
     if (!delArmed) {
-      delArmed = true; btn.textContent = 'Pulsa otra vez para eliminar';
-      delTimer = setTimeout(function () { delArmed = false; btn.textContent = 'Eliminar este registro'; }, 3000);
+      delArmed = true; btn.textContent = '¿Seguro?';
+      delTimer = setTimeout(function () { delArmed = false; btn.textContent = 'Eliminar'; }, 3000);
     } else {
-      clearTimeout(delTimer); delArmed = false; btn.textContent = 'Eliminar este registro';
+      clearTimeout(delTimer); delArmed = false; btn.textContent = 'Eliminar';
       if (lastId) removeRec(lastId);
       toast('Registro eliminado.');
     }

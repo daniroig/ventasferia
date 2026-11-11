@@ -28,7 +28,7 @@ esta carpeta a un alojamiento gratuito. La opción más rápida:
 ## Uso
 - **Entrada**: activa la cámara con el botón de debajo de la imagen y apunta al código de barras. Suena un pitido y el ISBN aparece en el campo "ISBN escaneado"; pulsa **Añadir** para guardarlo (o **Descartar**). Al añadir, el campo se vacía y puedes apuntar el precio en el recuadro "Último registro".
 - **Código manual**: escribe 6 dígitos y pulsa "Añadir".
-- **Registros**: lista completa, botón de borrar por registro y exportación a .xlsx o .csv
+- **Registros**: lista completa donde puedes tocar un registro para editar su precio en la misma línea, botón de borrar por registro y exportación a .xlsx o .csv
   (se guardan en la carpeta Descargas del móvil).
 
 ## Importante
@@ -36,4 +36,4 @@ esta carpeta a un alojamiento gratuito. La opción más rápida:
   datos de Chrome o desinstalas la app, se pierden: exporta con frecuencia.
 - Los datos no se comparten entre dispositivos.
 - Para actualizar la app, sube los archivos de nuevo y cambia el nombre de la caché en
-  `sw.js` (`libros-v4` por `libros-v5`).
+  `sw.js` (`libros-v5` por `libros-v6`).
