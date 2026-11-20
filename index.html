@@ -138,8 +138,10 @@
   #isbnCard .note { margin: 0; color: var(--muted); font-size: .9rem; }
   #isbnCard .note:empty { display: none; }
   .btn:disabled { opacity: .45; cursor: default; }
-  .sum-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
-  .sum-val { margin: 0; font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .sum-grid { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; }
+  .sum-grid > div { min-width: 0; }
+  .sum-val { margin: 0; font-size: clamp(.8rem, 3.9vw, 1.1rem); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #summary { padding: 10px 12px; }
   .sum-total .sum-val { color: var(--accent); }
   .toolbar .btn { flex: 1 1 140px; }
 
@@ -156,10 +158,13 @@
   ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   ul.list li {
     background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-    padding: 8px 10px; display: grid; grid-template-columns: minmax(0, 1fr) 72px 40px auto; gap: 6px; align-items: center;
-    cursor: text;
+    padding: 8px 10px; display: grid; grid-template-columns: minmax(0, 1fr) 86px 40px auto; gap: 6px; align-items: center;
+    cursor: pointer;
   }
   ul.list li:focus-within { border-color: var(--accent); }
+  ul.list li.sel { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  ul.list li:not(.sel) .price-in, ul.list li:not(.sel) .kind-in, ul.list li:not(.sel) .del { pointer-events: none; opacity: .55; }
+  ul.list li input:disabled { color: var(--fg); -webkit-text-fill-color: var(--fg); }
   li .info { min-width: 0; }
   li .main { font-family: var(--mono); font-size: .98rem; letter-spacing: .02em; overflow-wrap: anywhere; }
   li .tag { font-family: var(--font); font-size: .72rem; color: var(--muted); letter-spacing: .05em; margin-right: 6px; }
@@ -194,8 +199,7 @@
 <body>
 <div class="wrap">
   <header class="top">
-    <h1>Registro de libros <small class="ver">v8</small></h1>
-    <span class="pill"><b id="count">0</b> registros</span>
+    <h1>Registro de libros <small class="ver">v9</small></h1>
   </header>
 
   <section id="view-entry" class="stack">
@@ -240,9 +244,9 @@
   <section id="view-list" class="stack" hidden>
     <div class="card summary" id="summary">
       <div class="sum-grid">
-        <div><p class="side-label">Registros</p><p class="sum-val" id="sumCount">0</p></div>
-        <div><p class="side-label">Total Efectivo</p><p class="sum-val" id="sumE">0,00 €</p></div>
-        <div><p class="side-label">Total Tarjeta</p><p class="sum-val" id="sumT">0,00 €</p></div>
+        <div><p class="side-label">Libros</p><p class="sum-val" id="sumCount">0</p></div>
+        <div><p class="side-label">Efectivo</p><p class="sum-val" id="sumE">0,00 €</p></div>
+        <div><p class="side-label">Tarjeta</p><p class="sum-val" id="sumT">0,00 €</p></div>
         <div class="sum-total"><p class="side-label">Total</p><p class="sum-val" id="sumTotal">0,00 €</p></div>
       </div>
       <p class="muted" id="sumNote" hidden></p>

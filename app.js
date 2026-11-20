@@ -14,6 +14,7 @@
   }
   var records = load();
   var lastId = null;
+  var selectedId = null; // fila seleccionada en la lista: solo esa se puede editar
 
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(records)); return true; }
@@ -90,6 +91,21 @@
     return rec;
   }
 
+  function applySelection() {
+    var items = $('list').children;
+    for (var i = 0; i < items.length; i++) {
+      var li = items[i], on = li.dataset.id === selectedId;
+      li.classList.toggle('sel', on);
+      li._ctl.forEach(function (c) { c.disabled = !on; });
+    }
+  }
+
+  function selectRow(id) {
+    if (selectedId === id) return;
+    selectedId = id;
+    applySelection();
+  }
+
   function findRec(id) {
     for (var i = 0; i < records.length; i++) if (records[i].id === id) return records[i];
     return null;
@@ -99,6 +115,7 @@
     records = records.filter(function (r) { return r.id !== id; });
     save();
     if (lastId === id) lastId = null;
+    if (selectedId === id) selectedId = null;
     renderLast(0);
     renderList();
   }
@@ -118,7 +135,6 @@
   }
 
   function renderList() {
-    $('count').textContent = records.length;
     var ul = $('list');
     ul.textContent = '';
     var sorted = records.slice().reverse();
@@ -192,13 +208,17 @@
 
       li.appendChild(del);
 
-      // Tocar cualquier parte de la fila lleva al campo del precio.
-      li.addEventListener('click', function (e) {
-        if (e.target === price || e.target === del || e.target === kb) return;
-        price.focus();
+      // Hay que seleccionar la fila antes de cambiar precio, E/T o borrar (evita cambios accidentales).
+      li.dataset.id = r.id;
+      li.tabIndex = 0;
+      li._ctl = [price, kb, del];
+      li.addEventListener('click', function () { selectRow(r.id); });
+      li.addEventListener('keydown', function (e) {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target === li) { e.preventDefault(); selectRow(r.id); }
       });
       ul.appendChild(li);
     });
+    applySelection();
     $('emptyMsg').hidden = records.length > 0;
     $('btnClear').hidden = records.length === 0;
     renderTotals();
@@ -516,10 +536,16 @@
       if (b.dataset.view === name) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
     });
     if (name !== 'entry') stopCamera();
+    if (name !== 'list') { selectedId = null; applySelection(); }
     window.scrollTo(0, 0);
   }
   document.querySelectorAll('nav.tabs button').forEach(function (b) {
     b.addEventListener('click', function () { showView(b.dataset.view); });
+  });
+
+  // Tocar fuera de una fila de la lista quita la selección.
+  $('view-list').addEventListener('click', function (e) {
+    if (!e.target.closest('li')) { selectedId = null; applySelection(); }
   });
 
   /* ---------- Exportar ---------- */
@@ -590,7 +616,7 @@
   $('clearNo').addEventListener('click', function () { dlg.close(); });
   $('clearYes').addEventListener('click', function () {
     dlg.close();
-    records = []; lastId = null; save(); renderLast(0); renderList();
+    records = []; lastId = null; selectedId = null; save(); renderLast(0); renderList();
     toast('Todos los registros borrados.');
   });
 

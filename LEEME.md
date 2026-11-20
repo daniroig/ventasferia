@@ -27,7 +27,7 @@ esta carpeta a un alojamiento gratuito. La opción más rápida:
 
 ## Uso
 - **Entrada**: hay un único campo "ISBN / Código". Por defecto está en modo escáner: activa la cámara con el botón de debajo de la imagen y apunta al código de barras; suena un pitido y el ISBN aparece en el campo. Si tocas el campo, se vacía y puedes teclear un código de 6 dígitos (si lo dejas vacío y sales, vuelve al modo escáner). Debajo van el precio (opcional) y el interruptor de pago: **E** = Efectivo (por defecto) y **T** = Tarjeta; cada toque alterna entre ambos. Pulsa **Añadir** para guardar. Tras añadir, el campo, el precio y el interruptor (que vuelve a E) quedan listos para el siguiente libro. "Último registro" solo muestra lo último guardado.
-- **Registros**: arriba salen el número de registros, el Total Efectivo (tipo E), el Total Tarjeta (tipo T) y el Total (suma de ambos). Debajo, la lista, donde puedes tocar un registro para editar su precio en la misma línea, cambiar E/T con el botón de la fila o borrarlo.
+- **Registros**: arriba, en una línea, el número de libros, el total en Efectivo (tipo E), el total en Tarjeta (tipo T) y el Total (suma de ambos). Debajo, la lista. Para cambiar el precio, el E/T o borrar un registro, primero toca la fila para seleccionarla (se marca con un borde de color); los controles de las demás filas están bloqueados. Tocar fuera de las filas o cambiar de pestaña quita la selección.
 - **Export Nuevos**: genera un Excel solo con los registros que aún no se habían exportado y a todos les anota la misma Fecha_Hora_Export (el instante de la pulsación).
 - **Export Completo**: genera un Excel con todos los registros y todos los campos. No cambia el estado de exportación.
   (Los archivos se guardan en la carpeta Descargas del móvil.)
@@ -37,4 +37,4 @@ esta carpeta a un alojamiento gratuito. La opción más rápida:
   datos de Chrome o desinstalas la app, se pierden: exporta con frecuencia.
 - Los datos no se comparten entre dispositivos.
 - Para actualizar la app, sube los archivos de nuevo y cambia el nombre de la caché en
-  `sw.js` (`libros-v8` por `libros-v9`).
+  `sw.js` (`libros-v9` por `libros-v10`).
