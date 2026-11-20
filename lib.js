@@ -38,26 +38,10 @@
     return { ok: true, value: parseFloat(t) };
   }
 
-  var HEADERS = ['ISBN', 'Código', 'Precio', 'Fecha', 'Hora', 'Tipo'];
+  // Columnas del Excel. "Libro" es texto (ISBN o código de 6 dígitos) y "Clave" indica de cuál de los dos se trata.
+  var HEADERS = ['Libro', 'Clave', 'Precio', 'Tipo', 'Fecha', 'Hora', 'Fecha_Hora_Export'];
 
-  // CSV con ; y BOM para que Excel en español lo abra bien.
-  // ISBN y código van como ="..." para que Excel no los convierta en número
-  // (perdería los ceros iniciales del código y pondría el ISBN en notación científica).
-  function toCSV(records) {
-    function textCell(v) { return v ? '="' + v + '"' : ''; }
-    var lines = [HEADERS.join(';')];
-    records.forEach(function (r) {
-      lines.push([
-        textCell(r.isbn),
-        textCell(r.code),
-        fmtPrice(r.price),
-        fmtDate(r.ts),
-        fmtTime(r.ts),
-        r.kind === 'E' || r.kind === 'T' ? r.kind : ''
-      ].join(';'));
-    });
-    return '﻿' + lines.join('\r\n') + '\r\n';
-  }
+  function fmtDateTime(ts) { return fmtDate(ts) + ' ' + fmtTime(ts); }
 
   /* ---------- XLSX mínimo (zip sin compresión) ---------- */
 
@@ -129,7 +113,7 @@
 
   function toXLSX(records) {
     var enc = new TextEncoder();
-    var cols = ['A', 'B', 'C', 'D', 'E', 'F'];
+    var cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
 
     function strCell(ref, v, style) {
       if (v == null || v === '') return '';
@@ -146,20 +130,22 @@
       var n = idx + 2;
       var price = r.price == null ? '' : '<c r="C' + n + '" s="2"><v>' + r.price + '</v></c>';
       rows.push('<row r="' + n + '">' +
-        strCell('A' + n, r.isbn) +
-        strCell('B' + n, r.code) +
+        strCell('A' + n, r.isbn || r.code) +
+        strCell('B' + n, r.isbn ? 'ISBN' : 'ID') +
         price +
-        strCell('D' + n, fmtDate(r.ts)) +
-        strCell('E' + n, fmtTime(r.ts)) +
-        strCell('F' + n, r.kind === 'E' || r.kind === 'T' ? r.kind : '') +
+        strCell('D' + n, r.kind === 'E' || r.kind === 'T' ? r.kind : '') +
+        strCell('E' + n, fmtDate(r.ts)) +
+        strCell('F' + n, fmtTime(r.ts)) +
+        strCell('G' + n, r.exportedAt ? fmtDateTime(r.exportedAt) : '') +
         '</row>');
     });
 
     var sheet = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-      '<cols><col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="10" customWidth="1"/>' +
-      '<col min="3" max="3" width="10" customWidth="1"/><col min="4" max="4" width="12" customWidth="1"/>' +
-      '<col min="5" max="5" width="10" customWidth="1"/><col min="6" max="6" width="7" customWidth="1"/></cols>' +
+      '<cols><col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="8" customWidth="1"/>' +
+      '<col min="3" max="3" width="10" customWidth="1"/><col min="4" max="4" width="7" customWidth="1"/>' +
+      '<col min="5" max="5" width="12" customWidth="1"/><col min="6" max="6" width="10" customWidth="1"/>' +
+      '<col min="7" max="7" width="20" customWidth="1"/></cols>' +
       '<sheetData>' + rows.join('') + '</sheetData></worksheet>';
 
     var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
@@ -217,7 +203,7 @@
     fmtTime: fmtTime,
     fmtPrice: fmtPrice,
     parsePrice: parsePrice,
-    toCSV: toCSV,
+    fmtDateTime: fmtDateTime,
     toXLSX: toXLSX
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = root.Libros;

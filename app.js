@@ -31,15 +31,39 @@
     toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2600);
   }
 
+  // Pitido al leer un ISBN. Chrome mantiene el audio bloqueado hasta que el usuario toca la pantalla,
+  // así que se desbloquea con el primer toque y se vuelve a intentar antes de cada pitido.
   var audioCtx;
+  function getAudio() {
+    try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+    return audioCtx;
+  }
+  function unlockAudio() {
+    var c = getAudio();
+    if (c && c.state === 'suspended') { try { c.resume(); } catch (e) {} }
+  }
+  ['pointerdown', 'touchstart', 'keydown', 'click'].forEach(function (ev) {
+    document.addEventListener(ev, unlockAudio, { passive: true });
+  });
+
   function beep() {
-    try {
-      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
-      o.frequency.value = 880; g.gain.value = 0.12;
-      o.connect(g); g.connect(audioCtx.destination);
-      o.start(); o.stop(audioCtx.currentTime + 0.12);
-    } catch (e) {}
+    var c = getAudio();
+    function play() {
+      try {
+        var t = c.currentTime;
+        var o = c.createOscillator(), g = c.createGain();
+        o.type = 'sine'; o.frequency.value = 1000;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.6, t + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+        o.connect(g); g.connect(c.destination);
+        o.start(t); o.stop(t + 0.24);
+      } catch (e) {}
+    }
+    if (c) {
+      if (c.state === 'suspended') { try { c.resume().then(play, function () {}); } catch (e) {} }
+      else play();
+    }
     try { if (navigator.vibrate) navigator.vibrate(60); } catch (e) {}
   }
 
@@ -51,6 +75,7 @@
       code: fields.code || null,
       price: fields.price == null ? null : fields.price,
       kind: fields.kind === 'T' ? 'T' : 'E', // E = Efectivo, T = Tarjeta
+      exportedAt: null, // fecha y hora de exportación (vacío = aún no exportado)
       ts: Date.now()
     };
     var previous = records.filter(function (r) {
@@ -176,7 +201,7 @@
     });
     $('emptyMsg').hidden = records.length > 0;
     $('btnClear').hidden = records.length === 0;
-    $('btnXlsx').disabled = $('btnCsv').disabled = records.length === 0;
+    renderTotals();
   }
 
   /* ---------- Precio del último registro ---------- */
@@ -191,6 +216,31 @@
   }
 
   var KIND_NAME = { E: 'Efectivo', T: 'Tarjeta' };
+
+  function money(c) { return (c / 100).toFixed(2).replace('.', ',') + ' €'; }
+
+  // Totales por forma de pago (en céntimos para evitar errores de redondeo) y estado de exportación.
+  function renderTotals() {
+    var e = 0, t = 0, untyped = 0, pending = 0;
+    records.forEach(function (r) {
+      if (!r.exportedAt) pending++;
+      if (r.price == null) return;
+      var c = Math.round(r.price * 100);
+      if (r.kind === 'E') e += c; else if (r.kind === 'T') t += c; else untyped++;
+    });
+    $('sumCount').textContent = records.length;
+    $('sumE').textContent = money(e);
+    $('sumT').textContent = money(t);
+    $('sumTotal').textContent = money(e + t);
+    var note = $('sumNote');
+    note.hidden = untyped === 0;
+    note.textContent = untyped + (untyped === 1 ? ' registro con precio y sin tipo E/T no entra' : ' registros con precio y sin tipo E/T no entran') + ' en los totales.';
+    $('pendingNote').textContent = records.length === 0 ? ''
+      : pending === 0 ? 'Todos los registros están exportados.'
+      : pending + (pending === 1 ? ' registro pendiente' : ' registros pendientes') + ' de exportar.';
+    $('btnNew').disabled = pending === 0;
+    $('btnFull').disabled = records.length === 0;
+  }
 
   function lastSummary(rec) {
     return priceText(rec.price) + (KIND_NAME[rec.kind] ? ' · ' + rec.kind : '');
@@ -208,12 +258,14 @@
     rec.price = value;
     save();
     if (lastId === rec.id) $('lastPriceText').textContent = lastSummary(rec);
+    renderTotals();
   }
 
   function setKind(rec, k) {
     rec.kind = k;
     save();
     if (lastId === rec.id) $('lastPriceText').textContent = lastSummary(rec);
+    renderTotals();
   }
 
   var delArmed = false, delTimer;
@@ -385,10 +437,7 @@
     if ('BarcodeDetector' in window) startNative(); else startFallback();
   }
 
-  function beepPrime() {
-    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-  }
+  function beepPrime() { unlockAudio(); }
 
   function startNative() {
     var detector;
@@ -492,16 +541,34 @@
     toast('Archivo ' + name + ' guardado en Descargas.');
   }
 
-  $('btnXlsx').addEventListener('click', function () {
-    if (!records.length) return;
-    var bytes = L.toXLSX(records);
-    download('libros_' + stamp() + '.xlsx', new Blob([bytes], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    }));
+  function downloadXlsx(name, list) {
+    try {
+      download(name, new Blob([L.toXLSX(list)], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      }));
+      return true;
+    } catch (e) {
+      toast('No se pudo generar el Excel.');
+      return false;
+    }
+  }
+
+  // Export Nuevos: solo los registros sin Fecha_Hora_Export. Todos reciben el mismo instante.
+  $('btnNew').addEventListener('click', function () {
+    var pend = records.filter(function (r) { return !r.exportedAt; });
+    if (!pend.length) { toast('No hay registros nuevos.'); return; }
+    var when = Date.now();
+    var copy = pend.map(function (r) { return Object.assign({}, r, { exportedAt: when }); });
+    if (!downloadXlsx('libros_nuevos_' + stamp() + '.xlsx', copy)) return;
+    pend.forEach(function (r) { r.exportedAt = when; });
+    save();
+    renderList();
   });
-  $('btnCsv').addEventListener('click', function () {
+
+  // Export Completo: todos los registros con todos los campos; no cambia su estado de exportación.
+  $('btnFull').addEventListener('click', function () {
     if (!records.length) return;
-    download('libros_' + stamp() + '.csv', new Blob([L.toCSV(records)], { type: 'text/csv;charset=utf-8' }));
+    downloadXlsx('libros_completo_' + stamp() + '.xlsx', records);
   });
 
   // Borrar todo: dos pulsaciones y después un diálogo Sí / No (No es la opción por defecto).

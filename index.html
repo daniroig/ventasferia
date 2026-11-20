@@ -138,6 +138,10 @@
   #isbnCard .note { margin: 0; color: var(--muted); font-size: .9rem; }
   #isbnCard .note:empty { display: none; }
   .btn:disabled { opacity: .45; cursor: default; }
+  .sum-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+  .sum-val { margin: 0; font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .sum-total .sum-val { color: var(--accent); }
+  .toolbar .btn { flex: 1 1 140px; }
 
   dialog {
     background: var(--surface); color: var(--fg); border: 1px solid var(--line);
@@ -190,7 +194,7 @@
 <body>
 <div class="wrap">
   <header class="top">
-    <h1>Registro de libros <small class="ver">v7</small></h1>
+    <h1>Registro de libros <small class="ver">v8</small></h1>
     <span class="pill"><b id="count">0</b> registros</span>
   </header>
 
@@ -234,10 +238,20 @@
   </section>
 
   <section id="view-list" class="stack" hidden>
-    <div class="toolbar">
-      <button type="button" class="btn primary" id="btnXlsx">Exportar a Excel (.xlsx)</button>
-      <button type="button" class="btn" id="btnCsv">Exportar a CSV</button>
+    <div class="card summary" id="summary">
+      <div class="sum-grid">
+        <div><p class="side-label">Registros</p><p class="sum-val" id="sumCount">0</p></div>
+        <div><p class="side-label">Total Efectivo</p><p class="sum-val" id="sumE">0,00 €</p></div>
+        <div><p class="side-label">Total Tarjeta</p><p class="sum-val" id="sumT">0,00 €</p></div>
+        <div class="sum-total"><p class="side-label">Total</p><p class="sum-val" id="sumTotal">0,00 €</p></div>
+      </div>
+      <p class="muted" id="sumNote" hidden></p>
     </div>
+    <div class="toolbar">
+      <button type="button" class="btn primary" id="btnNew">Export Nuevos</button>
+      <button type="button" class="btn" id="btnFull">Export Completo</button>
+    </div>
+    <p class="muted" id="pendingNote"></p>
     <ul class="list" id="list"></ul>
     <p class="empty" id="emptyMsg">Aún no hay libros registrados.</p>
     <button type="button" class="btn danger small" id="btnClear" hidden>Borrar todos los registros</button>
