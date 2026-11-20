@@ -38,7 +38,7 @@
     return { ok: true, value: parseFloat(t) };
   }
 
-  var HEADERS = ['ISBN', 'Código', 'Precio', 'Fecha', 'Hora'];
+  var HEADERS = ['ISBN', 'Código', 'Precio', 'Fecha', 'Hora', 'Tipo'];
 
   // CSV con ; y BOM para que Excel en español lo abra bien.
   // ISBN y código van como ="..." para que Excel no los convierta en número
@@ -52,7 +52,8 @@
         textCell(r.code),
         fmtPrice(r.price),
         fmtDate(r.ts),
-        fmtTime(r.ts)
+        fmtTime(r.ts),
+        r.kind === 'E' || r.kind === 'T' ? r.kind : ''
       ].join(';'));
     });
     return '﻿' + lines.join('\r\n') + '\r\n';
@@ -128,7 +129,7 @@
 
   function toXLSX(records) {
     var enc = new TextEncoder();
-    var cols = ['A', 'B', 'C', 'D', 'E'];
+    var cols = ['A', 'B', 'C', 'D', 'E', 'F'];
 
     function strCell(ref, v, style) {
       if (v == null || v === '') return '';
@@ -150,6 +151,7 @@
         price +
         strCell('D' + n, fmtDate(r.ts)) +
         strCell('E' + n, fmtTime(r.ts)) +
+        strCell('F' + n, r.kind === 'E' || r.kind === 'T' ? r.kind : '') +
         '</row>');
     });
 
@@ -157,7 +159,7 @@
       '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
       '<cols><col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="10" customWidth="1"/>' +
       '<col min="3" max="3" width="10" customWidth="1"/><col min="4" max="4" width="12" customWidth="1"/>' +
-      '<col min="5" max="5" width="10" customWidth="1"/></cols>' +
+      '<col min="5" max="5" width="10" customWidth="1"/><col min="6" max="6" width="7" customWidth="1"/></cols>' +
       '<sheetData>' + rows.join('') + '</sheetData></worksheet>';
 
     var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +

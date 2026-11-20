@@ -3,7 +3,7 @@
 App web instalable (PWA). Se usa desde Chrome en Android y se instala como una app más.
 Escanea el ISBN con la cámara, acepta códigos manuales de 6 dígitos, guarda fecha y hora
 de cada entrada y exporta a Excel (.xlsx) o CSV con las columnas
-ISBN, Código, Precio, Fecha, Hora.
+ISBN, Código, Precio, Fecha, Hora, Tipo (E o T).
 
 ## Cómo ponerla en el móvil (sin programar)
 
@@ -26,9 +26,8 @@ esta carpeta a un alojamiento gratuito. La opción más rápida:
 3. Al pulsar "Activar cámara" por primera vez, acepta el permiso de cámara.
 
 ## Uso
-- **Entrada**: activa la cámara con el botón de debajo de la imagen y apunta al código de barras. Suena un pitido y el ISBN aparece en el campo "ISBN escaneado". Si quieres, escribe el precio en el campo de al lado y pulsa **Añadir** para guardarlo. Si no quieres guardar ese ISBN, bórralo con la tecla de retroceso. Tras añadir, el ISBN y el precio se vacían. "Último registro" solo muestra lo último guardado; el precio se edita en Registros.
-- **Código manual**: escribe 6 dígitos, el precio si quieres, y pulsa "Añadir".
-- **Registros**: lista completa donde puedes tocar un registro para editar su precio en la misma línea, botón de borrar por registro y exportación a .xlsx o .csv
+- **Entrada**: hay un único campo "ISBN / Código". Por defecto está en modo escáner: activa la cámara con el botón de debajo de la imagen y apunta al código de barras; suena un pitido y el ISBN aparece en el campo. Si tocas el campo, se vacía y puedes teclear un código de 6 dígitos (si lo dejas vacío y sales, vuelve al modo escáner). Debajo van el precio (opcional) y el interruptor de pago: **E** = Efectivo (por defecto) y **T** = Tarjeta; cada toque alterna entre ambos. Pulsa **Añadir** para guardar. Tras añadir, el campo, el precio y el interruptor (que vuelve a E) quedan listos para el siguiente libro. "Último registro" solo muestra lo último guardado.
+- **Registros**: lista completa donde puedes tocar un registro para editar su precio en la misma línea y cambiar E/T con el botón de la fila, botón de borrar por registro y exportación a .xlsx o .csv
   (se guardan en la carpeta Descargas del móvil).
 
 ## Importante
@@ -36,4 +35,4 @@ esta carpeta a un alojamiento gratuito. La opción más rápida:
   datos de Chrome o desinstalas la app, se pierden: exporta con frecuencia.
 - Los datos no se comparten entre dispositivos.
 - Para actualizar la app, sube los archivos de nuevo y cambia el nombre de la caché en
-  `sw.js` (`libros-v6` por `libros-v7`).
+  `sw.js` (`libros-v7` por `libros-v8`).

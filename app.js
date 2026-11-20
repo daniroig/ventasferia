@@ -50,6 +50,7 @@
       isbn: fields.isbn || null,
       code: fields.code || null,
       price: fields.price == null ? null : fields.price,
+      kind: fields.kind === 'T' ? 'T' : 'E', // E = Efectivo, T = Tarjeta
       ts: Date.now()
     };
     var previous = records.filter(function (r) {
@@ -88,7 +89,7 @@
     $('lastNote').textContent = previous > 0
       ? 'Guardado. Ya lo habías registrado ' + previous + (previous === 1 ? ' vez' : ' veces') + ' antes.'
       : 'Guardado.';
-    $('lastPriceText').textContent = priceText(rec.price);
+    $('lastPriceText').textContent = lastSummary(rec);
   }
 
   function renderList() {
@@ -139,6 +140,17 @@
       });
       li.appendChild(price);
 
+      // Interruptor E / T editable en la propia fila (registros antiguos sin valor: "–").
+      var kb = document.createElement('button');
+      kb.type = 'button';
+      kb.className = 'btn kind-in';
+      paintKind(kb, r.kind);
+      kb.addEventListener('click', function () {
+        setKind(r, r.kind === 'E' ? 'T' : 'E');
+        paintKind(kb, r.kind);
+      });
+      li.appendChild(kb);
+
       var del = document.createElement('button');
       del.type = 'button';
       del.className = 'btn danger small del';
@@ -157,7 +169,7 @@
 
       // Tocar cualquier parte de la fila lleva al campo del precio.
       li.addEventListener('click', function (e) {
-        if (e.target === price || e.target === del) return;
+        if (e.target === price || e.target === del || e.target === kb) return;
         price.focus();
       });
       ul.appendChild(li);
@@ -178,11 +190,30 @@
     return p == null ? 'Sin precio' : L.fmtPrice(p) + ' €';
   }
 
+  var KIND_NAME = { E: 'Efectivo', T: 'Tarjeta' };
+
+  function lastSummary(rec) {
+    return priceText(rec.price) + (KIND_NAME[rec.kind] ? ' · ' + rec.kind : '');
+  }
+
+  // Pinta un botón E/T: letra y color según el valor.
+  function paintKind(btn, k) {
+    btn.textContent = KIND_NAME[k] ? k : '–';
+    btn.dataset.k = KIND_NAME[k] ? k : '';
+    btn.setAttribute('aria-label', 'Forma de pago: ' + (KIND_NAME[k] || 'sin indicar') + '. Toca para cambiar');
+  }
+
   // Guarda el precio editado en la lista y actualiza "Último registro" si es el mismo.
   function setPrice(rec, value) {
     rec.price = value;
     save();
-    if (lastId === rec.id) $('lastPriceText').textContent = priceText(value);
+    if (lastId === rec.id) $('lastPriceText').textContent = lastSummary(rec);
+  }
+
+  function setKind(rec, k) {
+    rec.kind = k;
+    save();
+    if (lastId === rec.id) $('lastPriceText').textContent = lastSummary(rec);
   }
 
   var delArmed = false, delTimer;
@@ -198,54 +229,57 @@
     }
   });
 
-  /* ---------- Código manual ---------- */
-  $('code').addEventListener('input', function (e) {
-    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
-    $('manualErr').textContent = '';
-  });
-  $('codePrice').addEventListener('input', function () { $('manualErr').textContent = ''; });
-  $('manualForm').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var v = $('code').value;
-    if (!/^\d{6}$/.test(v)) { $('manualErr').textContent = 'El código debe tener exactamente 6 dígitos.'; return; }
-    var p = liveParse($('codePrice').value);
-    if (!p) { $('manualErr').textContent = 'Precio no válido. Ejemplo: 12,50'; return; }
-    if (addRecord({ code: v, price: p.value })) {
-      $('code').value = '';
-      $('codePrice').value = ''; // el precio vuelve a vacío (opcional) en cada entrada
-    }
-  });
-
   /* ---------- Cámara ---------- */
   var video = $('video');
   var stream = null, starting = false, scanning = false, lastVal = '', lastValT = 0, fallbackTimer = null;
 
-  // El ISBN leído se escribe en el campo y solo se guarda al pulsar "Añadir".
-  // Mientras el campo tenga algo, la cámara no lee otro. Para descartarlo basta con
-  // borrarlo con la tecla de retroceso.
-  var isbnField = $('isbnField');
+  /* Campo único "ISBN / Código".
+     - Por defecto (al abrir la app y tras cada registro) está en modo escáner: solo lo rellena la cámara.
+     - Si lo tocas pasa a modo manual: se vacía y admite un código de 6 dígitos.
+     - Si en modo manual lo dejas vacío y sales del campo, vuelve al modo escáner.
+     Nada se guarda hasta pulsar "Añadir". */
+  var field = $('isbnField');
+  var manual = false;
+  var payKind = 'E'; // E = Efectivo, T = Tarjeta; vuelve a E en cada registro nuevo
+
+  function setScanMode() {
+    manual = false;
+    field.readOnly = true;
+    field.maxLength = 13;
+    field.placeholder = 'Escanea o toca para código';
+  }
+
+  function enterManual() {
+    manual = true;
+    field.value = '';
+    field.readOnly = false;
+    field.maxLength = 6;
+    field.placeholder = 'Código de 6 dígitos';
+    refreshEntry();
+    field.focus();
+  }
 
   function handleScan(raw) {
-    if (isbnField.value) return;
+    if (manual || field.value) return;
     if (!L.isBookISBN(raw)) return;
     var now = Date.now();
     if (raw === lastVal && now - lastValT < 4000) return;
     lastVal = raw; lastValT = now;
-    isbnField.value = raw;
-    refreshIsbn();
+    field.value = raw;
+    refreshEntry();
     beep();
     var cam = $('cam');
     cam.classList.add('hit');
     setTimeout(function () { cam.classList.remove('hit'); }, 500);
   }
 
-  // Activa o desactiva "Añadir" y avisa si el ISBN ya estaba registrado.
-  function refreshIsbn() {
-    var v = isbnField.value;
+  // Activa o desactiva "Añadir" y avisa si el ISBN o código ya estaba registrado.
+  function refreshEntry() {
+    var v = field.value;
     $('btnAdd').disabled = v === '';
     $('isbnErr').textContent = '';
-    var previous = L.isBookISBN(v)
-      ? records.filter(function (r) { return r.isbn === v; }).length
+    var previous = (L.isBookISBN(v) || /^\d{6}$/.test(v))
+      ? records.filter(function (r) { return r.isbn === v || r.code === v; }).length
       : 0;
     $('isbnNote').textContent = previous > 0
       ? 'Ya lo habías registrado ' + previous + (previous === 1 ? ' vez.' : ' veces.')
@@ -253,29 +287,56 @@
     if (v === '') lastValT = Date.now(); // evita que el mismo código vuelva a aparecer al instante
   }
 
-  isbnField.addEventListener('input', function () {
-    isbnField.value = isbnField.value.replace(/\D/g, '').slice(0, 13);
-    refreshIsbn();
+  function paintPayKind() {
+    var b = $('kindBtn');
+    b.textContent = payKind + ' · ' + KIND_NAME[payKind];
+    b.dataset.k = payKind;
+    b.setAttribute('aria-label', 'Forma de pago: ' + KIND_NAME[payKind] + '. Toca para cambiar');
+  }
+
+  field.addEventListener('click', function () { if (!manual) enterManual(); });
+  field.addEventListener('input', function () {
+    field.value = field.value.replace(/\D/g, '').slice(0, manual ? 6 : 13);
+    refreshEntry();
+  });
+  field.addEventListener('blur', function () {
+    if (manual && field.value === '') { setScanMode(); refreshEntry(); }
   });
   $('isbnPrice').addEventListener('input', function () { $('isbnErr').textContent = ''; });
+  $('kindBtn').addEventListener('click', function () {
+    payKind = payKind === 'E' ? 'T' : 'E';
+    paintPayKind();
+  });
 
   $('isbnCard').addEventListener('submit', function (e) {
     e.preventDefault();
-    var v = isbnField.value;
+    var v = field.value;
     if (!v) return;
-    if (!L.isBookISBN(v)) {
-      $('isbnErr').textContent = 'ISBN no válido: 13 dígitos que empiecen por 978 o 979.';
-      return;
+    var fields;
+    if (manual) {
+      if (!/^\d{6}$/.test(v)) { $('isbnErr').textContent = 'El código debe tener exactamente 6 dígitos.'; return; }
+      fields = { code: v };
+    } else {
+      if (!L.isBookISBN(v)) { $('isbnErr').textContent = 'ISBN no válido. Vuelve a escanearlo.'; return; }
+      fields = { isbn: v };
     }
     var p = liveParse($('isbnPrice').value);
     if (!p) { $('isbnErr').textContent = 'Precio no válido. Ejemplo: 12,50'; return; }
-    if (addRecord({ isbn: v, price: p.value }, true)) {
-      isbnField.value = '';
-      $('isbnPrice').value = ''; // el precio vuelve a vacío (opcional) en cada entrada
-      refreshIsbn();
+    fields.price = p.value;
+    fields.kind = payKind;
+    if (addRecord(fields, true)) {
+      field.value = '';
+      $('isbnPrice').value = '';   // el precio vuelve a vacío (opcional)
+      payKind = 'E';               // el pago vuelve a Efectivo
+      paintPayKind();
+      setScanMode();               // vuelve a escanear
+      refreshEntry();
       toast('Libro añadido.');
     }
   });
+
+  setScanMode();
+  paintPayKind();
 
   function camMessage(msg) { $('camMsg').textContent = msg; }
 

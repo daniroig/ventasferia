@@ -41,6 +41,7 @@
   }
 
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; }
   body {
     background: var(--bg);
@@ -125,8 +126,12 @@
   .last .note { margin: 0; color: var(--ok); font-size: .9rem; min-height: 1.2em; }
   .side-label { margin: 0; font-size: .85rem; color: var(--muted); font-weight: 600; letter-spacing: .02em; }
   .price-show { margin: 0; font-size: 1.2rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-  input[type="text"].pr { width: 70px; flex: none; text-align: right; padding: 0 8px; }
-  .btn.add { flex: none; padding: 0 12px; }
+  input[type="text"].pr { flex: 1; text-align: right; padding: 0 12px; }
+  .btn.kind-btn { flex: none; width: 138px; padding: 0 8px; }
+  .btn.kind-btn[data-k="T"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  li .kind-in { min-height: 40px; width: 40px; padding: 0; font-size: 1rem; }
+  li .kind-in[data-k="T"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  input.isbn[readonly] { cursor: pointer; }
   input.isbn { letter-spacing: .01em; font-size: .95rem; padding: 0 8px; }
   #isbnCard .err { min-height: 0; }
   #isbnCard .err:empty { display: none; }
@@ -147,7 +152,7 @@
   ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   ul.list li {
     background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-    padding: 8px 10px; display: grid; grid-template-columns: minmax(0, 1fr) 76px auto; gap: 8px; align-items: center;
+    padding: 8px 10px; display: grid; grid-template-columns: minmax(0, 1fr) 72px 40px auto; gap: 6px; align-items: center;
     cursor: text;
   }
   ul.list li:focus-within { border-color: var(--accent); }
@@ -185,7 +190,7 @@
 <body>
 <div class="wrap">
   <header class="top">
-    <h1>Registro de libros <small class="ver">v6</small></h1>
+    <h1>Registro de libros <small class="ver">v7</small></h1>
     <span class="pill"><b id="count">0</b> registros</span>
   </header>
 
@@ -200,24 +205,15 @@
     <button type="button" class="btn primary" id="btnCam" style="width:100%">Activar cámara</button>
 
     <form class="card" id="isbnCard" autocomplete="off">
-      <label for="isbnField">ISBN escaneado</label>
+      <label for="isbnField">ISBN / Código</label>
+      <input type="text" class="mono isbn" id="isbnField" inputmode="numeric" readonly maxlength="13" placeholder="Escanea o toca para código">
       <div class="inline">
-        <input type="text" class="mono isbn" id="isbnField" inputmode="numeric" maxlength="13" placeholder="Sin escanear">
-        <input type="text" class="pr" id="isbnPrice" inputmode="decimal" placeholder="Precio" aria-label="Precio (opcional)">
-        <button type="submit" class="btn primary add" id="btnAdd" disabled>Añadir</button>
+        <input type="text" class="pr" id="isbnPrice" inputmode="decimal" placeholder="Precio (opcional)" aria-label="Precio (opcional)">
+        <button type="button" class="btn kind-btn" id="kindBtn" aria-label="Forma de pago: Efectivo">E · Efectivo</button>
       </div>
       <p class="note" id="isbnNote"></p>
       <p class="err" id="isbnErr" role="alert"></p>
-    </form>
-
-    <form class="card" id="manualForm" autocomplete="off">
-      <label for="code">Código manual de 6 dígitos</label>
-      <div class="inline">
-        <input type="text" class="mono" id="code" inputmode="numeric" maxlength="6" placeholder="000000">
-        <input type="text" class="pr" id="codePrice" inputmode="decimal" placeholder="Precio" aria-label="Precio (opcional)">
-        <button type="submit" class="btn primary add">Añadir</button>
-      </div>
-      <p class="err" id="manualErr" role="alert"></p>
+      <button type="submit" class="btn primary" id="btnAdd" disabled>Añadir</button>
     </form>
 
     <div class="card last" id="last" hidden>
@@ -229,7 +225,7 @@
           <p class="note" id="lastNote"></p>
         </div>
         <div class="last-side">
-          <p class="side-label">Precio</p>
+          <p class="side-label">Precio · Pago</p>
           <p class="price-show" id="lastPriceText"></p>
           <button type="button" class="btn danger small" id="lastDelete">Eliminar</button>
         </div>
