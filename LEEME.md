@@ -3,7 +3,7 @@
 App web instalable (PWA). Se usa desde Chrome en Android y se instala como una app más.
 Escanea el ISBN con la cámara, acepta códigos manuales de 6 dígitos, guarda fecha y hora
 de cada entrada y exporta a Excel (.xlsx) con las columnas
-Libro, Clave (ISBN o ID), Precio, Tipo (E o T), Fecha, Hora y Fecha_Hora_Export.
+Libro, Clave (ISBN o ID), Precio, Tipo (E o T), Título, Autor, Fecha, Hora y Fecha_Hora_Export.
 
 ## Cómo ponerla en el móvil (sin programar)
 
@@ -28,13 +28,17 @@ esta carpeta a un alojamiento gratuito. La opción más rápida:
 ## Uso
 - **Entrada**: hay un único campo "ISBN / Código". Por defecto está en modo escáner: activa la cámara con el botón de debajo de la imagen y apunta al código de barras; suena un pitido y el ISBN aparece en el campo. Si tocas el campo, se vacía y puedes teclear un código de 6 dígitos (si lo dejas vacío y sales, vuelve al modo escáner). Debajo van el precio (opcional) y el interruptor de pago: **E** = Efectivo (por defecto) y **T** = Tarjeta; cada toque alterna entre ambos. Pulsa **Añadir** para guardar. Tras añadir, el campo, el precio y el interruptor (que vuelve a E) quedan listos para el siguiente libro. "Último registro" solo muestra lo último guardado.
 - **Registros**: arriba, en una línea, el número de libros, el total en Efectivo (tipo E), el total en Tarjeta (tipo T) y el Total (suma de ambos). Debajo, la lista. Para cambiar el precio, el E/T o borrar un registro, primero toca la fila para seleccionarla (se marca con un borde de color); los controles de las demás filas están bloqueados. Tocar fuera de las filas o cambiar de pestaña quita la selección.
-- **Export Nuevos**: genera un Excel solo con los registros que aún no se habían exportado y a todos les anota la misma Fecha_Hora_Export (el instante de la pulsación).
-- **Export Completo**: genera un Excel con todos los registros y todos los campos. No cambia el estado de exportación.
-  (Los archivos se guardan en la carpeta Descargas del móvil.)
+- **Exp.New**: genera un Excel solo con los registros que aún no se habían exportado y a todos les anota la misma Fecha_Hora_Export (el instante de la pulsación).
+- **Exp.Full**: genera un Excel con todos los registros y todos los campos. No cambia el estado de exportación.
+- **Tit/Aut**: busca el título y el autor de los registros con ISBN que aún no los tienen. Necesita internet.
+  (Los archivos Excel se guardan en la carpeta Descargas del móvil.)
+
+## Título y autor
+Al añadir un libro con ISBN, la app consulta en segundo plano Google Books y, si no lo encuentra, Open Library (ambos gratuitos y sin clave). El resultado aparece en "Último registro", en cada fila de la lista (en una línea, con el título cortado si es largo) y en el Excel. Si no hay conexión o el libro no está en esas bases de datos, el registro se guarda igual y puedes probar más tarde con el botón Tit/Aut. Los códigos de 6 dígitos no tienen título. Los registros que ya se exportaron con Exp.New no se vuelven a incluir en Exp.New al completarles el título: usa Exp.Full.
 
 ## Importante
 - Los datos se guardan en el propio navegador del móvil, no en internet. Si borras los
   datos de Chrome o desinstalas la app, se pierden: exporta con frecuencia.
 - Los datos no se comparten entre dispositivos.
 - Para actualizar la app, sube los archivos de nuevo y cambia el nombre de la caché en
-  `sw.js` (`libros-v9` por `libros-v10`).
+  `sw.js` (`libros-v10` por `libros-v11`).

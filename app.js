@@ -14,6 +14,7 @@
   }
   var records = load();
   var lastId = null;
+  var lookup = {}; // id de registro -> 'busy' | 'none' | 'offline' (estado de la última consulta de título/autor)
   var selectedId = null; // fila seleccionada en la lista: solo esa se puede editar
 
   function save() {
@@ -77,6 +78,8 @@
       price: fields.price == null ? null : fields.price,
       kind: fields.kind === 'T' ? 'T' : 'E', // E = Efectivo, T = Tarjeta
       exportedAt: null, // fecha y hora de exportación (vacío = aún no exportado)
+      title: null,
+      author: null,
       ts: Date.now()
     };
     var previous = records.filter(function (r) {
@@ -124,6 +127,7 @@
     var box = $('last');
     var rec = lastId ? findRec(lastId) : null;
     box.hidden = !rec;
+    renderLastBook();
     if (!rec) return;
     $('lastKind').textContent = rec.isbn ? 'Último registro · ISBN' : 'Último registro · Código';
     $('lastVal').textContent = rec.isbn || rec.code;
@@ -207,6 +211,8 @@
       });
 
       li.appendChild(del);
+      var bl = bookLineEl(r);
+      if (bl) li.appendChild(bl);
 
       // Hay que seleccionar la fila antes de cambiar precio, E/T o borrar (evita cambios accidentales).
       li.dataset.id = r.id;
@@ -241,9 +247,10 @@
 
   // Totales por forma de pago (en céntimos para evitar errores de redondeo) y estado de exportación.
   function renderTotals() {
-    var e = 0, t = 0, untyped = 0, pending = 0;
+    var e = 0, t = 0, untyped = 0, pending = 0, noMeta = 0;
     records.forEach(function (r) {
       if (!r.exportedAt) pending++;
+      if (needsMeta(r)) noMeta++;
       if (r.price == null) return;
       var c = Math.round(r.price * 100);
       if (r.kind === 'E') e += c; else if (r.kind === 'T') t += c; else untyped++;
@@ -256,9 +263,11 @@
     note.hidden = untyped === 0;
     note.textContent = untyped + (untyped === 1 ? ' registro con precio y sin tipo E/T no entra' : ' registros con precio y sin tipo E/T no entran') + ' en los totales.';
     $('pendingNote').textContent = records.length === 0 ? ''
-      : pending === 0 ? 'Todos los registros están exportados.'
-      : pending + (pending === 1 ? ' registro pendiente' : ' registros pendientes') + ' de exportar.';
+      : (pending === 0 ? 'Todos los registros están exportados.'
+        : pending + (pending === 1 ? ' registro pendiente' : ' registros pendientes') + ' de exportar.') +
+        (noMeta > 0 ? ' · ' + noMeta + ' sin título/autor.' : '');
     $('btnNew').disabled = pending === 0;
+    $('btnMeta').disabled = noMeta === 0 || enriching;
     $('btnFull').disabled = records.length === 0;
   }
 
@@ -396,7 +405,8 @@
     if (!p) { $('isbnErr').textContent = 'Precio no válido. Ejemplo: 12,50'; return; }
     fields.price = p.value;
     fields.kind = payKind;
-    if (addRecord(fields, true)) {
+    var rec = addRecord(fields, true);
+    if (rec) {
       field.value = '';
       $('isbnPrice').value = '';   // el precio vuelve a vacío (opcional)
       payKind = 'E';               // el pago vuelve a Efectivo
@@ -404,6 +414,7 @@
       setScanMode();               // vuelve a escanear
       refreshEntry();
       toast('Libro añadido.');
+      if (rec.isbn) fetchMeta(rec);
     }
   });
 
@@ -541,6 +552,150 @@
   }
   document.querySelectorAll('nav.tabs button').forEach(function (b) {
     b.addEventListener('click', function () { showView(b.dataset.view); });
+  });
+
+  /* ---------- Título y autor (Google Books, con Open Library de respaldo) ---------- */
+  var enriching = false;
+
+  function needsMeta(r) { return !!r.isbn && !r.title && !r.author; }
+
+  function clean(t, max) {
+    return String(t == null ? '' : t).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')
+      .replace(/\s+/g, ' ').trim().slice(0, max);
+  }
+
+  function fetchJSON(url) {
+    var ctl = new AbortController();
+    var timer = setTimeout(function () { ctl.abort(); }, 8000);
+    return fetch(url, { signal: ctl.signal }).then(function (r) {
+      clearTimeout(timer);
+      if (!r.ok) throw new Error('http ' + r.status);
+      return r.json();
+    }, function (e) { clearTimeout(timer); throw e; });
+  }
+
+  // Resuelve { status: 'found', title, author } | { status: 'none' } | { status: 'error' }.
+  function lookupBook(isbn) {
+    var errored = false;
+    return fetchJSON('https://www.googleapis.com/books/v1/volumes?q=isbn:' + isbn +
+        '&maxResults=1&fields=items(volumeInfo(title,authors))')
+      .then(function (d) {
+        var v = d && d.items && d.items[0] && d.items[0].volumeInfo;
+        return v && clean(v.title, 300)
+          ? { title: clean(v.title, 300), author: clean((v.authors || []).join(', '), 200) } : null;
+      })
+      .catch(function () { errored = true; return null; })
+      .then(function (g) {
+        if (g) return g;
+        return fetchJSON('https://openlibrary.org/api/books?bibkeys=ISBN:' + isbn + '&format=json&jscmd=data')
+          .then(function (d) {
+            var b = d && d['ISBN:' + isbn];
+            return b && clean(b.title, 300)
+              ? { title: clean(b.title, 300),
+                  author: clean((b.authors || []).map(function (a) { return a.name; }).join(', '), 200) } : null;
+          })
+          .catch(function () { errored = true; return null; });
+      })
+      .then(function (res) {
+        return res ? { status: 'found', title: res.title, author: res.author }
+                   : { status: errored ? 'error' : 'none' };
+      });
+  }
+
+  // Línea "Título · Autor" de la lista: el título se corta con "…" para que ambos quepan en una línea.
+  function bookLineEl(rec) {
+    if (!rec.title && !rec.author) return null;
+    var line = document.createElement('div');
+    line.className = 'bookline';
+    if (rec.title) {
+      var t = document.createElement('span');
+      t.className = 'bt'; t.textContent = rec.title; t.title = rec.title;
+      line.appendChild(t);
+    }
+    if (rec.title && rec.author) {
+      var s = document.createElement('span');
+      s.className = 'bs'; s.textContent = '·';
+      line.appendChild(s);
+    }
+    if (rec.author) {
+      var a = document.createElement('span');
+      a.className = 'ba'; a.textContent = rec.author; a.title = rec.author;
+      line.appendChild(a);
+    }
+    return line;
+  }
+
+  function renderLastBook() {
+    var box = $('lastBook');
+    var rec = lastId ? findRec(lastId) : null;
+    if (!rec || !rec.isbn) { box.hidden = true; return; }
+    var st = lookup[rec.id], msg = '';
+    if (!rec.title && !rec.author) {
+      msg = st === 'busy' ? 'Buscando título y autor…'
+          : st === 'offline' ? 'Sin conexión. Usa Tit/Aut más tarde.'
+          : st === 'none' ? 'Título y autor no encontrados.' : '';
+      if (!msg) { box.hidden = true; return; }
+    }
+    $('lastTitle').textContent = rec.title || '';
+    $('lastAuthor').textContent = rec.author || '';
+    $('lastBookMsg').textContent = msg;
+    box.hidden = false;
+  }
+
+  // Actualiza solo la fila afectada (sin rehacer la lista, para no quitar el foco si se está editando).
+  function refreshBook(rec) {
+    var li = $('list').querySelector('li[data-id="' + rec.id + '"]');
+    if (li) {
+      var old = li.querySelector('.bookline');
+      if (old) old.remove();
+      var el = bookLineEl(rec);
+      if (el) li.appendChild(el);
+    }
+    renderLastBook();
+    renderTotals();
+  }
+
+  function fetchMeta(rec) {
+    lookup[rec.id] = 'busy';
+    renderLastBook();
+    return lookupBook(rec.isbn).then(function (res) {
+      var cur = findRec(rec.id);
+      if (!cur) { delete lookup[rec.id]; return res; }
+      if (res.status === 'found') {
+        cur.title = res.title || null;
+        cur.author = res.author || null;
+        save();
+        delete lookup[cur.id];
+      } else {
+        lookup[cur.id] = res.status === 'error' ? 'offline' : 'none';
+      }
+      refreshBook(cur);
+      return res;
+    });
+  }
+
+  // Tit/Aut: intenta recuperar título y autor de los registros con ISBN que aún no los tienen.
+  $('btnMeta').addEventListener('click', async function () {
+    if (enriching) return;
+    var todo = records.filter(needsMeta);
+    if (!todo.length) { toast('Todos los ISBN ya tienen título y autor.'); return; }
+    enriching = true;
+    var btn = $('btnMeta');
+    btn.disabled = true;
+    var ok = 0, errRun = 0, stopped = false;
+    for (var i = 0; i < todo.length; i++) {
+      btn.textContent = (i + 1) + '/' + todo.length;
+      var res = await fetchMeta(todo[i]);
+      if (res.status === 'found') { ok++; errRun = 0; }
+      else if (res.status === 'error') { if (++errRun >= 2) { stopped = true; break; } }
+      else errRun = 0;
+      await new Promise(function (r) { setTimeout(r, 250); });
+    }
+    enriching = false;
+    btn.textContent = 'Tit/Aut';
+    renderTotals();
+    toast(stopped ? 'Sin conexión o servicio no disponible. ' + ok + ' encontrados.'
+                  : ok + ' de ' + todo.length + ' encontrados.');
   });
 
   // Tocar fuera de una fila de la lista quita la selección.

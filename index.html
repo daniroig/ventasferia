@@ -129,7 +129,7 @@
   input[type="text"].pr { flex: 1; text-align: right; padding: 0 12px; }
   .btn.kind-btn { flex: none; width: 138px; padding: 0 8px; }
   .btn.kind-btn[data-k="T"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-  li .kind-in { min-height: 40px; width: 40px; padding: 0; font-size: 1rem; }
+  li .kind-in { min-height: 40px; width: 38px; padding: 0; font-size: 1rem; }
   li .kind-in[data-k="T"] { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
   input.isbn[readonly] { cursor: pointer; }
   input.isbn { letter-spacing: .01em; font-size: .95rem; padding: 0 8px; }
@@ -138,12 +138,21 @@
   #isbnCard .note { margin: 0; color: var(--muted); font-size: .9rem; }
   #isbnCard .note:empty { display: none; }
   .btn:disabled { opacity: .45; cursor: default; }
+  .last-book { display: flex; flex-direction: column; gap: 2px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .last-book p { margin: 0; overflow-wrap: anywhere; }
+  .book-title { font-weight: 600; font-size: .95rem; }
+  .book-author { color: var(--muted); font-size: .9rem; }
+  .last-book :empty { display: none; }
+  ul.list li .bookline { grid-column: 1 / -1; display: flex; gap: 6px; min-width: 0; font-size: .8rem; color: var(--muted); }
+  .bookline .bt { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bookline .bs { flex: none; }
+  .bookline .ba { flex: none; max-width: 55%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sum-grid { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; }
   .sum-grid > div { min-width: 0; }
   .sum-val { margin: 0; font-size: clamp(.8rem, 3.9vw, 1.1rem); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
   #summary { padding: 10px 12px; }
   .sum-total .sum-val { color: var(--accent); }
-  .toolbar .btn { flex: 1 1 140px; }
+  .toolbar .btn { flex: 1 1 90px; padding: 0 8px; }
 
   dialog {
     background: var(--surface); color: var(--fg); border: 1px solid var(--line);
@@ -154,11 +163,10 @@
   dialog p { margin: 0 0 16px; color: var(--muted); }
 
   .toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
-  .toolbar .btn { flex: 1 1 180px; }
   ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   ul.list li {
     background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
-    padding: 8px 10px; display: grid; grid-template-columns: minmax(0, 1fr) 86px 40px auto; gap: 6px; align-items: center;
+    padding: 8px 10px; display: grid; grid-template-columns: minmax(0, 1fr) 80px 38px auto; gap: 6px; align-items: center;
     cursor: pointer;
   }
   ul.list li:focus-within { border-color: var(--accent); }
@@ -166,11 +174,11 @@
   ul.list li:not(.sel) .price-in, ul.list li:not(.sel) .kind-in, ul.list li:not(.sel) .del { pointer-events: none; opacity: .55; }
   ul.list li input:disabled { color: var(--fg); -webkit-text-fill-color: var(--fg); }
   li .info { min-width: 0; }
-  li .main { font-family: var(--mono); font-size: .98rem; letter-spacing: .02em; overflow-wrap: anywhere; }
+  li .main { font-family: var(--mono); font-size: .9rem; letter-spacing: 0; overflow-wrap: anywhere; }
   li .tag { font-family: var(--font); font-size: .72rem; color: var(--muted); letter-spacing: .05em; margin-right: 6px; }
   li .meta { color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; }
   li input.price-in { min-height: 40px; width: 100%; flex: none; text-align: right; font-weight: 600; padding: 0 8px; font-variant-numeric: tabular-nums; }
-  li .del { min-width: 72px; padding: 0 8px; }
+  li .del { min-width: 64px; padding: 0 6px; }
   input[type="text"].bad { border-color: var(--danger); }
   .empty { text-align: center; color: var(--muted); padding: 28px 8px; }
 
@@ -199,7 +207,7 @@
 <body>
 <div class="wrap">
   <header class="top">
-    <h1>Registro de libros <small class="ver">v9</small></h1>
+    <h1>Registro de libros <small class="ver">v10</small></h1>
   </header>
 
   <section id="view-entry" class="stack">
@@ -238,6 +246,11 @@
           <button type="button" class="btn danger small" id="lastDelete">Eliminar</button>
         </div>
       </div>
+      <div class="last-book" id="lastBook" hidden>
+        <p class="book-title" id="lastTitle"></p>
+        <p class="book-author" id="lastAuthor"></p>
+        <p class="muted" id="lastBookMsg"></p>
+      </div>
     </div>
   </section>
 
@@ -252,8 +265,9 @@
       <p class="muted" id="sumNote" hidden></p>
     </div>
     <div class="toolbar">
-      <button type="button" class="btn primary" id="btnNew">Export Nuevos</button>
-      <button type="button" class="btn" id="btnFull">Export Completo</button>
+      <button type="button" class="btn primary" id="btnNew">Exp.New</button>
+      <button type="button" class="btn" id="btnMeta">Tit/Aut</button>
+      <button type="button" class="btn" id="btnFull">Exp.Full</button>
     </div>
     <p class="muted" id="pendingNote"></p>
     <ul class="list" id="list"></ul>

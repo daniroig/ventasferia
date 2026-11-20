@@ -39,7 +39,7 @@
   }
 
   // Columnas del Excel. "Libro" es texto (ISBN o código de 6 dígitos) y "Clave" indica de cuál de los dos se trata.
-  var HEADERS = ['Libro', 'Clave', 'Precio', 'Tipo', 'Fecha', 'Hora', 'Fecha_Hora_Export'];
+  var HEADERS = ['Libro', 'Clave', 'Precio', 'Tipo', 'Título', 'Autor', 'Fecha', 'Hora', 'Fecha_Hora_Export'];
 
   function fmtDateTime(ts) { return fmtDate(ts) + ' ' + fmtTime(ts); }
 
@@ -113,7 +113,7 @@
 
   function toXLSX(records) {
     var enc = new TextEncoder();
-    var cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    var cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I'];
 
     function strCell(ref, v, style) {
       if (v == null || v === '') return '';
@@ -134,9 +134,11 @@
         strCell('B' + n, r.isbn ? 'ISBN' : 'ID') +
         price +
         strCell('D' + n, r.kind === 'E' || r.kind === 'T' ? r.kind : '') +
-        strCell('E' + n, fmtDate(r.ts)) +
-        strCell('F' + n, fmtTime(r.ts)) +
-        strCell('G' + n, r.exportedAt ? fmtDateTime(r.exportedAt) : '') +
+        strCell('E' + n, r.title) +
+        strCell('F' + n, r.author) +
+        strCell('G' + n, fmtDate(r.ts)) +
+        strCell('H' + n, fmtTime(r.ts)) +
+        strCell('I' + n, r.exportedAt ? fmtDateTime(r.exportedAt) : '') +
         '</row>');
     });
 
@@ -144,8 +146,9 @@
       '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
       '<cols><col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="8" customWidth="1"/>' +
       '<col min="3" max="3" width="10" customWidth="1"/><col min="4" max="4" width="7" customWidth="1"/>' +
-      '<col min="5" max="5" width="12" customWidth="1"/><col min="6" max="6" width="10" customWidth="1"/>' +
-      '<col min="7" max="7" width="20" customWidth="1"/></cols>' +
+      '<col min="5" max="5" width="40" customWidth="1"/><col min="6" max="6" width="28" customWidth="1"/>' +
+      '<col min="7" max="7" width="12" customWidth="1"/><col min="8" max="8" width="10" customWidth="1"/>' +
+      '<col min="9" max="9" width="20" customWidth="1"/></cols>' +
       '<sheetData>' + rows.join('') + '</sheetData></worksheet>';
 
     var styles = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
